@@ -1,8 +1,9 @@
 #!/usr/bin/env ruby
 
-width  = 54	# board width in millimeters
-length = 33 # board length in millimeters
-inset  = 4  # screw hole distance from edges (also sets corner radii)
+boardwidth  = 54	# board width in millimeters
+boardlength = 33	# board length in millimeters
+inset       = 4		# screw hole distance from edges (also sets corner radii)
+horizontal  = true	# horizontal layout
 
 # XML class that can print itself out with indenting, attributes, and children
 class Xml
@@ -167,8 +168,8 @@ class Layer < Xml
 end
 
 # compute half width and length for center offsets
-hwidth  = width / 2
-hlength = length / 2
+hwidth  = boardwidth / 2
+hlength = boardlength / 2
 
 # build basic document hierarchy elements
 eagle     = Xml.new('eagle')
@@ -446,16 +447,29 @@ elements.addChild(Element.new('H4', 'holes', '3,0', 'MOUNT-HOLE3.0', -hwidth + i
 nholes    = 5
 npg       = 2
 gap       = 1
-prows     = 2
+if horizontal
+	prows     = 3
+	extrarows = 0
+	space     = boardwidth - (2 * (inset + 3))
+else
+	prows     = 2
+	extrarows = 1
+	space     = boardlength - (2 * (inset + 1.5))
+end
 pitch     = 0.1 * 25.4
-extrarows = 1
+nrows     = (space / pitch).to_i
 
-yspace    = length - (2 * (inset + 1.5))
-nrows     = (yspace / pitch).to_i
 startrow  = (nrows - 1) / 2.0 # coerce to floating point to avoid truncation
-y         = startrow * pitch
-rx        = (nholes + (gap / 2.0)) * pitch # also coerce to floating point
-lx        = -rx
+
+if horizontal
+	x  = startrow * pitch
+	ty = (nholes + (gap / 2.0)) * pitch # also coerce to floating point
+	by = -ty
+else
+	y  = startrow * pitch
+	rx = (nholes + (gap / 2.0)) * pitch # also coerce to floating point
+	lx = -rx
+end
 
 $net      = 1
 layer     = 16 # Bottom
@@ -480,27 +494,49 @@ end
 
 # two sets of parallel lines of connected pads
 (nrows + extrarows).times do |count|
-	signals.addChild(makelink(layer, width, lx, y,  pitch, 0, nholes))
-	signals.addChild(makelink(layer, width, rx, y, -pitch, 0, nholes))
-
-	y -= pitch
+	if horizontal
+		signals.addChild(makelink(layer, width, x, ty, 0, -pitch, nholes))
+		signals.addChild(makelink(layer, width, x, by, 0,  pitch, nholes))
+		x -= pitch
+	else
+		signals.addChild(makelink(layer, width, lx, y,  pitch, 0, nholes))
+		signals.addChild(makelink(layer, width, rx, y, -pitch, 0, nholes))
+		y -= pitch
+	end
 end
 
 # connected pads for power buses
 
-y = (startrow - 1) * pitch
+if horizontal
+	x = startrow * pitch
+else
+	y = (startrow - 1) * pitch
+end
 
 npg.times do |count|
-	signals.addChild(makelink(layer, width, lx + (count - npg) * pitch, y, 0, -pitch, nrows - 2))
-	signals.addChild(makelink(layer, width, rx - (count - npg) * pitch, y, 0, -pitch, nrows - 2))
+	if horizontal
+		# one pair of power buses between the parallel traces
+		signals.addChild(makelink(layer, width, x, pitch/2 - (pitch * count), -pitch, 0, nrows))
+	else
+		# two pairs of power buses outside the parallel traces
+		signals.addChild(makelink(layer, width, lx + (count - npg) * pitch, y, 0, -pitch, nrows - 2))
+		signals.addChild(makelink(layer, width, rx - (count - npg) * pitch, y, 0, -pitch, nrows - 2))
+	end
 end
 
 # unconnected pads for further prototyping area
 
 prows.times do |prow|
-	(nrows - 2).times do |row|
-		signals.addChild(makelink(layer, width, lx - (npg + prow + 1) * pitch, y - row * pitch, pitch, pitch, 1))
-		signals.addChild(makelink(layer, width, rx + (npg + prow + 1) * pitch, y - row * pitch, pitch, pitch, 1))
+	if horizontal
+		6.times do |rank|
+			signals.addChild(makelink(layer, width,  x - (prow - 3) * pitch, ty - (rank + 3) * pitch, pitch, pitch, 1))
+			signals.addChild(makelink(layer, width, -x + (prow - 3) * pitch, ty - (rank + 3) * pitch, pitch, pitch, 1))
+		end
+	else
+		(nrows - 2).times do |row|
+			signals.addChild(makelink(layer, width, lx - (npg + prow + 1) * pitch, y - row * pitch, pitch, pitch, 1))
+			signals.addChild(makelink(layer, width, rx + (npg + prow + 1) * pitch, y - row * pitch, pitch, pitch, 1))
+		end
 	end
 end
 
