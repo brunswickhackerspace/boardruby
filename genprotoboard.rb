@@ -248,6 +248,7 @@ hole = Xml.new('hole')
 hole.addAttribute('x', 0)
 hole.addAttribute('y', 0)
 hole.addAttribute('drill', 3)
+package.addChild(hole)
 
 packages.addChild(package)
 
