@@ -496,8 +496,10 @@ end
 # two sets of parallel lines of connected pads
 (nrows + extrarows).times do |count|
 	if horizontal
-		signals.addChild(makelink(layer, width, x, ty, 0, -pitch, nholes))
-		signals.addChild(makelink(layer, width, x, by, 0,  pitch, nholes))
+		topskip    = 2
+		bottomskip = 1
+		signals.addChild(makelink(layer, width, x, ty - (topskip * pitch), 0, -pitch, 3))
+		signals.addChild(makelink(layer, width, x, by + (bottomskip * pitch), 0,  pitch, 4))
 		x -= pitch
 	else
 		signals.addChild(makelink(layer, width, lx, y,  pitch, 0, nholes))
